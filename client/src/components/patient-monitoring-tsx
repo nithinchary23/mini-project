@@ -1,0 +1,264 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { getStatusColor, getOrganIcon, getInitials } from '@/lib/utils';
+import { MonitoringPatient } from '@/types';
+import { LineChart } from '@/components/charts/line-chart';
+
+export function PatientMonitoring() {
+  const [typeFilter, setTypeFilter] = useState('All Organ Types');
+  const [timeFilter, setTimeFilter] = useState('Last 30 Days');
+  const { toast } = useToast();
+  
+  const { data, isLoading, error } = useQuery({
+    queryKey: [`/api/monitoring?type=${typeFilter !== 'All Organ Types' ? typeFilter : ''}&time=${timeFilter}`],
+  });
+  
+  const handleViewMonitoring = (patientId: string) => {
+    // In a real app, this would navigate to detailed monitoring view
+    toast({
+      title: 'View Monitoring Details',
+      description: `Opening detailed monitoring for patient ID: ${patientId}`,
+    });
+  };
+  
+  const handleViewAllMonitoring = () => {
+    // In a real app, this would navigate to full monitoring dashboard
+    toast({
+      title: 'View All Patients',
+      description: 'Navigating to full monitoring dashboard...',
+    });
+  };
+  
+  const handleAddMonitoring = () => {
+    // In a real app, this would open monitoring data entry form
+    toast({
+      title: 'Add Monitoring Data',
+      description: 'Opening monitoring data entry form...',
+    });
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="mt-8 bg-white rounded-lg shadow">
+        <div className="border-b border-neutral-200 px-6 py-4">
+          <Skeleton className="h-7 w-48" />
+        </div>
+        <div className="p-6">
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="mt-8 bg-white rounded-lg shadow p-6">
+        <div className="text-center py-10">
+          <p className="text-alert-600 mb-2">Failed to load monitoring data</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  const monitoringData = data?.monitoringData || {};
+  const patients = data?.patients || [];
+  
+  return (
+    <div className="mt-8 bg-white rounded-lg shadow">
+      <div className="border-b border-neutral-200 px-6 py-4 flex justify-between items-center">
+        <h3 className="font-serif font-medium text-lg text-neutral-800">Post-Transplant Monitoring</h3>
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <select 
+              className="appearance-none bg-neutral-100 border-0 rounded-md py-1.5 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option>All Organ Types</option>
+              <option>Heart</option>
+              <option>Kidney</option>
+              <option>Liver</option>
+              <option>Lung</option>
+            </select>
+            <span className="material-icons absolute right-2 top-1.5 text-neutral-500 pointer-events-none text-sm">arrow_drop_down</span>
+          </div>
+          <div className="relative">
+            <select 
+              className="appearance-none bg-neutral-100 border-0 rounded-md py-1.5 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value)}
+            >
+              <option>Last 30 Days</option>
+              <option>Last 90 Days</option>
+              <option>Last 6 Months</option>
+              <option>Last Year</option>
+            </select>
+            <span className="material-icons absolute right-2 top-1.5 text-neutral-500 pointer-events-none text-sm">arrow_drop_down</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-neutral-700 mb-2">Organ Function</h4>
+            <div className="chart-container">
+              <LineChart 
+                data={monitoringData.organFunction?.data || []} 
+                labels={monitoringData.organFunction?.labels || []}
+                color="primary"
+              />
+            </div>
+            <div className="mt-2 flex justify-between items-center">
+              <div className="flex items-center">
+                <span className="inline-block w-3 h-3 rounded-full bg-primary-500 mr-2"></span>
+                <span className="text-xs text-neutral-600">Average: {monitoringData.organFunction?.average || '0%'}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="inline-block w-3 h-3 rounded-full bg-yellow-500 mr-2"></span>
+                <span className="text-xs text-neutral-600">Threshold: {monitoringData.organFunction?.threshold || '0%'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-neutral-700 mb-2">Immune Response</h4>
+            <div className="chart-container">
+              <LineChart 
+                data={monitoringData.immuneResponse?.data || []} 
+                labels={monitoringData.immuneResponse?.labels || []}
+                color="secondary"
+              />
+            </div>
+            <div className="mt-2 flex justify-between items-center">
+              <div className="flex items-center">
+                <span className="inline-block w-3 h-3 rounded-full bg-secondary-500 mr-2"></span>
+                <span className="text-xs text-neutral-600">Average: {monitoringData.immuneResponse?.average || '0'}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="inline-block w-3 h-3 rounded-full bg-alert-500 mr-2"></span>
+                <span className="text-xs text-neutral-600">Threshold: {monitoringData.immuneResponse?.threshold || '0'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-neutral-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-neutral-700 mb-2">Patient Recovery Index</h4>
+            <div className="chart-container">
+              <LineChart 
+                data={monitoringData.recoveryIndex?.data || []} 
+                labels={monitoringData.recoveryIndex?.labels || []}
+                color="success"
+              />
+            </div>
+            <div className="mt-2 flex justify-between items-center">
+              <div className="flex items-center">
+                <span className="inline-block w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                <span className="text-xs text-neutral-600">Average: {monitoringData.recoveryIndex?.average || '0%'}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="inline-block w-3 h-3 rounded-full bg-yellow-500 mr-2"></span>
+                <span className="text-xs text-neutral-600">Threshold: {monitoringData.recoveryIndex?.threshold || '0%'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-neutral-50 text-left">
+                <th className="px-6 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wider">Patient</th>
+                <th className="px-6 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wider">Transplant Date</th>
+                <th className="px-6 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wider">Organ Type</th>
+                <th className="px-6 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wider">Organ Function</th>
+                <th className="px-6 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wider">Immune Status</th>
+                <th className="px-6 py-3 text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200">
+              {patients.map((patient: MonitoringPatient) => (
+                <tr key={patient.id} className="hover:bg-neutral-50">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <div className="h-9 w-9 rounded-full bg-neutral-200 flex items-center justify-center text-neutral-600 font-medium">
+                        {getInitials(patient.name)}
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-neutral-800">{patient.name}</p>
+                        <p className="text-xs text-neutral-500">ID: {patient.patientId}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-neutral-800">
+                    {patient.transplantDate}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center text-sm text-neutral-800">
+                      <span className="material-icons text-primary-600 mr-1 text-sm">{getOrganIcon(patient.organType)}</span>
+                      {patient.organType}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(patient.organFunction.status)}`}>
+                        {patient.organFunction.status} ({patient.organFunction.value}%)
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(patient.immuneStatus)}`}>
+                        {patient.immuneStatus}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm whitespace-nowrap">
+                    <button 
+                      className={`${patient.urgent ? 'text-alert-700 hover:text-alert-900' : 'text-primary-700 hover:text-primary-900'} font-medium`}
+                      onClick={() => handleViewMonitoring(patient.id)}
+                    >
+                      {patient.urgent ? 'Urgent' : 'Details'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              
+              {patients.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-neutral-500">
+                    No monitoring data available
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        <div className="mt-6 flex justify-between items-center">
+          <button 
+            className="text-sm text-primary-700 font-medium flex items-center"
+            onClick={handleViewAllMonitoring}
+          >
+            View All Patients
+            <span className="material-icons text-sm ml-1">arrow_forward</span>
+          </button>
+          <button 
+            className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700"
+            onClick={handleAddMonitoring}
+          >
+            Add Monitoring Data
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
